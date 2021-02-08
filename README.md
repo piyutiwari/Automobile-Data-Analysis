@@ -13,3 +13,10 @@ date: "February 25, 2019"
 
 Purpose of this analysis is to look at the trend in fuel efficiency in vehicles over the years and to find out the major
 reasons behind the trend.
+
+
+# Data
+
+Downloaded from following location
+
+http://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip

@@ -1,0 +1,199 @@
+---
+title: "Vehicle_Basic_Analysis"
+author: "Piyu Tiwari"
+date: "February 25, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,fig.width = 9,comment = "",collapse = TRUE)
+library(gridExtra)
+library(tidyverse)
+vehicles <- read.csv("data/vehicles.csv",stringsAsFactors = F)
+vehicles_save <- vehicles
+labels <- do.call(rbind,strsplit(readLines("data/Description.txt")," - "))
+```
+# Purpose
+
+Purpose of this analysis is to look at the trend in fuel efficiency in vehicles over the years and to find out the major
+reasons behind the trend.
+
+
+# Basic data Analysis
+
+Number of observations : `r nrow(vehicles)` observations 
+
+Number of features : `r ncol(vehicles)` features
+
+Number of unique years : `r length(unique(vehicles$year))` years
+
+```{r,warning=FALSE,message=FALSE}
+first_year <- min(vehicles$year)
+last_year <- max(vehicles$year)
+```
+
+First year : `r first_year`
+
+Last year : `r last_year`
+
+## What are the primary fuel types
+
+```{r,message=FALSE,warning=FALSE}
+table(vehicles$fuelType1)
+```
+
+## What are the major transmissions
+
+
+```{r,message=FALSE,warning=FALSE}
+table(vehicles$trany)
+```
+
+It seems like there are 11 blank values. I will replace blanks with NA as it is easy to handle NA.
+
+
+```{r,message=FALSE,warning=FALSE}
+vehicles$trany[vehicles$trany ==""] <- NA
+```
+
+We only care whether transmission is automatic or manual hence I am going to replace all subscript with automatic or manual.
+
+
+
+```{r,message=FALSE,warning=FALSE}
+vehicles$trany <- as.factor(ifelse(substr(vehicles$trany,1,4)== "Auto","Auto","Manual"))
+```
+
+# Analysis
+
+# MPG trend over the years.
+
+First thing that I would like to know is the trend in car fuel efficiency over the years. Has it increased or decreased?
+
+To check the trend, we will compare average overall fuel efficiency , city fuel efficiency and highway fuel efficiency.
+
+```{r,message=FALSE,warning=FALSE}
+mpg_by_year <-  vehicles %>% group_by(year) %>% summarise(mean_mpg =mean(comb08) ,mean_city_mpg= mean(city08),
+                                                          mean_highway_mpg = mean(highway08))
+
+
+p1 <- ggplot(data = mpg_by_year, aes(x=year)) + geom_point(aes(y=mean_mpg)) + geom_smooth(aes(y=mean_mpg,color="red"),method = "auto") + geom_point(aes(y=mean_city_mpg)) + geom_smooth(aes(y=mean_city_mpg,color="green"),method = "auto") + geom_point(aes(y=mean_highway_mpg)) + geom_smooth(aes(y=mean_highway_mpg,color="blue"),method = "auto")+labs(x="Year",y="Average MPG",title="Year on Year average MPG comparison")+scale_color_manual(values=c("red","green","blue"),label=c("Overall MPG Avg","Avg City MPG","Avg Highway MPG")) + theme_minimal()
+
+p1
+```
+It looks like fuel efficiency has increased over the years. I think it will be worthwhile to check what happens with different fuel engine types(Electric engine or gasoline engine).
+
+
+```{r,message=FALSE,warning=FALSE}
+mpg_by_year <-  vehicles %>% group_by(year,fuelType1) %>% summarise(mean_mpg =mean(comb08) ,mean_city_mpg= mean(city08),
+                                                          mean_highway_mpg = mean(highway08))
+
+
+ggplot(data = mpg_by_year, aes(x=year)) + geom_point(aes(y=mean_mpg)) + geom_smooth(aes(y=mean_mpg,color="red"),method = "auto") + geom_point(aes(y=mean_city_mpg)) + geom_smooth(aes(y=mean_city_mpg,color="green"),method = "auto") + geom_point(aes(y=mean_highway_mpg)) + geom_smooth(aes(y=mean_highway_mpg,color="blue"),method = "auto")+labs(x="Year",y="Average MPG",title="Year on Year average MPG comparison")+scale_color_manual(values=c("red","green","blue"),label=c("Overall MPG Avg","Avg City MPG","Avg Highway MPG"))+ facet_grid(~fuelType1)+theme_minimal()
+```
+
+As can be seen from the previous graph that the electricity vehicles have contributed a lot in the increase in  fuel efficiency.
+While fuel efficiency of regular gasoline has also increased. But there could be various reasons for that.Usually, cars with higher engine have lower fuel efficiency, It could be very well possible that we have decreased the production of large engine vehicles.
+
+# Fuel efficiency of Large engine vehicle versus lower engine vehicle
+Before looking into whether the production of large engine vehicle has been less when compared to small engine vehicle, we will first confirm our hypothesis that large engines have lower fuel efficiency.
+
+```{r,message=FALSE,warning=FALSE}
+ggplot(data = vehicles,aes(x=displ,y=comb08))+geom_point()+ylim(0,50)+geom_smooth()+labs(x="Engine Displacement",y="Fuel Economy",title="Fuel economy versus engine displacement")
+```
+
+It is quite evident that the fuel economy decreases with increase in fuel displacement.
+
+Now, we are going to check if production of larger vehicle has decreased over the years.
+
+
+```{r,message=FALSE,warning=FALSE}
+p2 <- ggplot(data = vehicles,aes(x=year,y=displ,fill=year))+geom_bar(stat="summary",fun.y="mean")+labs(x="Year", y = "Displacement", title="Change in average vehicle displacement \n over the years ")
+
+#+geom_hline(yintercept =mean(vehicles$displ,na.rm = T),color="red")+geom_text(aes(1984,mean(vehicles$displ,na.rm = T),label="Lifetime displ avg",vjust=-1))           
+
+p2
+```
+
+It is for sure that the higher displacement engine count has decreased considerably. For better comparison, lets us plot fuel efficiency and displacement next to each other.
+
+```{r,message=FALSE,warning=FALSE}
+grid.arrange(p1,p2)
+```
+
+Things to notice in the above plots:
+
+* Engine displacement has been increasing up until 2008, with a sudden increase between 2006-2008.
+
+* Since 2009, there is considerable decrease in engine size. This partially explains the increase in fuel economy.
+
+* Until 2005, engine displacement has increased however fuel efficiency roughly remained constant. This indicates that engine efficiency has increased over the years.
+
+* Although there is jump in engine size between 2006 and 2008 however engine efficiency has remained constant. This look like an issue. Need to investigated more.
+
+
+Look like smaller vehicles are in fashion. 
+
+Let us see whether automatic engine are more efficient than manual engine for four cylinder engines, and how efficiency has changed over the years.
+
+```{r,message=FALSE,warning=FALSE}
+gascar4 <- subset(vehicles,cylinders == "4")  
+
+ggplot(data = gascar4,aes(factor(year),comb08))+geom_boxplot()+facet_wrap(~trany,ncol=1)+theme(axis.text.x = element_text(angle = 45))+labs(x="Year","Economy")
+```
+
+Looks like the manual car proportions has been decreasing over the time. Let us just visualize that.
+
+```{r,message=FALSE,warning=FALSE}
+p3 <- ggplot(data = gascar4,aes(factor(year),fill=trany))+geom_bar(position = "fill") + labs(x="Year",y="Transmission Proportion",fill = "Transmission")+theme(axis.text.x = element_text(angle = 45))+geom_hline(yintercept = 0.5,color="red",linetype=2)     
+
+p4 <- gascar4 %>% group_by(year) %>% summarise(proportionTrany = mean(ifelse(trany=="Manual",1,0))) %>% ggplot(aes(factor(year)))+geom_line(aes(y=proportionTrany,group=1,color="red"))+geom_line(aes(y=1-proportionTrany,group=1,color="blue"))+labs(x="Year",y="Tranmission Proportion",colour="Transmission")+scale_color_manual(values=c("red","blue"),label=c("Manual","Auto"))+theme(axis.text.x = element_text(angle = 45))
+
+grid.arrange(p3,p4)
+```
+
+Above plot indicates that  although efficiency of manual cars is better that auto transmission cars but there proportion has been decreasing considerably.
+
+Till now, In our analysis we have identified following patters : -
+
+* Fuel efficiency has improved over the years.
+
+* Various reasons behind this fuel efficiency improvement could be following
+
+  + Increase in electricity motor vehicles
+  
+  + Proportionally more smaller engine displacement vehicles
+  
+* Although manual cars seems to be better in fuel efficiency, there market share has been decreasing over the time.
+
+
+# Extra Analysis
+
+We will look into how brands are improving when compared to 4 gas cylinders models. 
+
+```{r,message=FALSE,warning=FALSE}
+
+carMakes <- gascar4 %>% group_by(year) %>% summarise(numberOfMakes = length(unique(make)))
+
+ggplot(carMakes,aes(year))+geom_point(aes(y=numberOfMakes))+ylim(20,45)+labs(x="Year",y='Number of models',title="Total 4 cylinders model per year")
+```
+
+
+It looks like that the number of 4 cylinder models decreased consistently over the years till about 2011. After 2011, we see an upward trend.
+
+Can we look at the brands who made 4 cylinder models every year of this study? We we select only those brands that have launched 4-gas cylinder models every year till 2016.
+
+```{r,message=FALSE,warning=FALSE}
+uniquemakes <- select (subset(gascar4,year<2015),c(year,make)) %>% group_by(year) %>% nest()
+brands <- reduce(uniquemakes$data,intersect)
+print(brands)
+```
+
+How these brands have done with respect to fuel efficiency.
+
+```{r,message=FALSE,warning=FALSE}
+ subset(gascar4,make %in% brands$make) %>% group_by(year,make) %>% summarise(avg_fuel_effc = mean(comb08)) %>% ggplot(aes(x=year,y=avg_fuel_effc))+geom_line()+ facet_wrap(~make)
+
+```
+
+We can see that overall fuel efficiency has increased over the years. However, some brands have been improving the fuel efficiency considerably more than others.

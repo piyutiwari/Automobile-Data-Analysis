@@ -23,4 +23,4 @@ http://www.fueleconomy.gov/feg/epadata/vehicles.csv.zip
 
 # Source 
 
-Based on a chapter in Data Science cookbook
+Based on a chapter in Practical Data Science Cookbook.
